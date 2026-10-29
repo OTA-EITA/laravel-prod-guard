@@ -1,0 +1,104 @@
+# Live lab: creates a fresh Laravel 13 app on a disposable GitHub-hosted
+# runner, checks it with laravel-prod-guard, then serves it and confirms what
+# the findings mean on a running app. Manual only: it installs upstream
+# packages and runs them, so it never runs on pushes or PRs.
+name: laravel-lab
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: laravel-lab
+  cancel-in-progress: false
+
+jobs:
+  lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SKELETON: "v13.11.0"
+      FRAMEWORK: "13.38.0"
+      TELESCOPE: "5.26.0"
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          extensions: pdo_sqlite
+          coverage: none
+          tools: none
+
+      - name: Create the app (skeleton and framework pinned)
+        run: |
+          composer create-project "laravel/laravel:$SKELETON" "$RUNNER_TEMP/app" --no-install --no-scripts --no-interaction
+          cd "$RUNNER_TEMP/app"
+          composer require "laravel/framework:$FRAMEWORK" --no-update --no-interaction
+          composer install --no-interaction --no-progress
+          # What create-project's scripts do: copy .env, generate a key, create the SQLite database.
+          composer run-script post-root-package-install --no-interaction
+          composer run-script post-create-project-cmd --no-interaction
+          composer show laravel/framework | grep -E '^versions'
+
+      - name: Check the untouched app
+        run: |
+          {
+            echo "## laravel-prod-guard on a fresh app (.env as created)"
+            echo '```'
+            bin/laravel-prod-guard "$RUNNER_TEMP/app" --fail-on none
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Telescope
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          composer require "laravel/telescope:$TELESCOPE" --no-interaction --no-progress
+          php artisan telescope:install --no-interaction
+          php artisan migrate --force --no-interaction
+
+      - name: Add the lab routes and serve
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          cat "$GITHUB_WORKSPACE/lab/routes.php" >> routes/web.php
+          nohup php artisan serve --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/serve.log" 2>&1 &
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null --max-time 2 http://127.0.0.1:8000/up && break
+            sleep 1
+          done
+          curl -s -o /dev/null -w 'up: %{http_code}\n' http://127.0.0.1:8000/up
+
+      - name: Live probes
+        run: |
+          bash lab/probe.sh "$RUNNER_TEMP/app" "$RUNNER_TEMP/probes.md"
+          cat "$RUNNER_TEMP/probes.md"
+          {
+            echo "## Live probes (php artisan serve, Laravel $FRAMEWORK)"
+            cat "$RUNNER_TEMP/probes.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check the app after the probes
+        run: |
+          {
+            echo "## laravel-prod-guard after the probes"
+            echo '```'
+            bin/laravel-prod-guard "$RUNNER_TEMP/app" --fail-on none
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lab
+          path: |
+            ${{ runner.temp }}/probes.md
+            ${{ runner.temp }}/app/debug-page.html
+            ${{ runner.temp }}/serve.log
+          if-no-files-found: ignore
+          retention-days: 30
