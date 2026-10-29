@@ -4,3 +4,5 @@ parameters:
         - src
         - tests
         - bin/laravel-prod-guard
+    excludePaths:
+        - tests/fixtures
