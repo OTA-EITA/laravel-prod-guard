@@ -137,7 +137,7 @@ final class Project
     /**
      * The first uncommented `'key' => expr` line in a config file.
      *
-     * @return array<int, array{0: string, 1: int}>|null
+     * @return array<array{string, int}>|null
      */
     private static function configLine(string $text, string $key): ?array
     {
