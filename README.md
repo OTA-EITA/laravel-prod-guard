@@ -11,17 +11,19 @@ A read-only CLI that checks a Laravel application's production settings: APP_DEB
 ## 使い方
 
 ```sh
-composer require --dev ota-eita/laravel-prod-guard
+git clone https://github.com/OTA-EITA/laravel-prod-guard.git
 
 # アプリのディレクトリで（.env を読む）
-vendor/bin/laravel-prod-guard
+php laravel-prod-guard/bin/laravel-prod-guard
 
 # 本番用の env ファイルを指定する
-vendor/bin/laravel-prod-guard --env .env.production
+php laravel-prod-guard/bin/laravel-prod-guard --env .env.production
 
 # CI 向け: MEDIUM 以上で失敗、SARIF で出力
-vendor/bin/laravel-prod-guard --env .env.production --fail-on medium --format sarif > laravel.sarif
+php laravel-prod-guard/bin/laravel-prod-guard --env .env.production --fail-on medium --format sarif > laravel.sarif
 ```
+
+実行時の依存はないので、`composer install` なしで PHP 8.2 以上があれば動きます。
 
 | オプション | 既定値 | 内容 |
 |---|---|---|
