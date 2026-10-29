@@ -1,0 +1,36 @@
+{
+    "name": "ota-eita/laravel-prod-guard",
+    "description": "Read-only checks for a Laravel app's production settings: APP_DEBUG and APP_KEY, debug tools shipped to production, session cookies, CORS with credentials, trusted proxies and secrets in the repository",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["laravel", "security", "configuration", "dotenv", "sarif"],
+    "authors": [{ "name": "OTA-EITA" }],
+    "require": {
+        "php": ">=8.2",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "13.4.3",
+        "phpstan/phpstan": "2.3.1"
+    },
+    "autoload": {
+        "psr-4": { "LaravelProdGuard\\": "src/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "LaravelProdGuard\\Tests\\": "tests/" }
+    },
+    "bin": ["bin/laravel-prod-guard"],
+    "config": {
+        "allow-plugins": {},
+        "sort-packages": true,
+        "audit": {
+            "ignore": {
+                "PKSA-qhjm-rpqc-qkn6": "PHPUnit の PHPT カバレッジの一時ディレクトリの問題。開発用の依存で、CI は使い捨ての単一ユーザー環境。修正版 13.4.4 (2026-10-27 公開) は公開から 7 日たつ 2026-11-03 以降に上げて、この除外を外す"
+            }
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse --no-progress"
+    }
+}
